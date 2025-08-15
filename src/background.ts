@@ -7,22 +7,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
     });
     return true; // 保持消息通道开放，以便异步响应
-  } 
+  }
   // 转发进度更新消息到popup
   else if (message.action === 'progress_update') {
     // 获取当前活动标签页的ID
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       // 记录进度到控制台
       console.log(`进度更新: ${message.status} - ${message.progress}%`);
-      
-      // 将消息转发到所有标签页，让popup能够接收
-      chrome.runtime.sendMessage(message, () => {
-        // 处理可能的错误
-        if (chrome.runtime.lastError) {
-          console.error('发送进度更新消息失败:', chrome.runtime.lastError);
+
+      // 从存储中获取当前最高进度，确保进度不会回退
+      chrome.storage.local.get('progressUpdate', (data) => {
+        const currentStoredProgress = data.progressUpdate?.progress || 0;
+        const newProgress = message.progress;
+        
+        // 如果新进度小于已存储的进度，则保持使用已存储的较高进度值
+        if (newProgress < currentStoredProgress) {
+          console.log(`防止进度回退: 保持进度 ${currentStoredProgress}% (忽略新进度 ${newProgress}%)`);
+          message.progress = currentStoredProgress;
         }
+        
+        // 将消息存储在本地，让popup可以在打开时获取最新进度
+        chrome.storage.local.set({ progressUpdate: message }, () => {
+          // 尝试将消息转发到所有标签页，让已打开的popup能够接收
+          try {
+            chrome.runtime.sendMessage(message, () => {
+              // 忽略"Receiving end does not exist"错误，这是正常的，当popup未打开时会发生
+              if (chrome.runtime.lastError) {
+                // 只记录日志，不作为错误处理
+                console.log('进度更新消息未被接收 (popup可能未打开)');
+              }
+            });
+          } catch (error) {
+            console.log('发送进度更新消息时出现异常:', error);
+          }
+        });
       });
-      
+
       // 发送响应
       sendResponse({ received: true });
     });
@@ -50,7 +70,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
           console.error('提取失败:', chrome.runtime.lastError.message);
           return;
         }
-        
+
         if (response && response.items) {
           // 保存到本地存储
           chrome.storage.local.set({ taobaoData: response }, () => {

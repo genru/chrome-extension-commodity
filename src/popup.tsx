@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 // 定义提取数据的类型
 interface TaobaoItem {
+  id: string;
   title: string;
   url: string;
   price: string;
@@ -35,6 +36,15 @@ const Popup = () => {
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       setCurrentURL(tabs[0].url);
+    });
+
+    // 从本地存储加载之前保存的数据
+    chrome.storage.local.get('taobaoData', (result) => {
+      if (result.taobaoData) {
+        console.log('从本地存储加载数据:', result.taobaoData);
+        setExtractedData(result.taobaoData);
+        setStatus("已加载保存的数据");
+      }
     });
 
     // 添加消息监听器，接收进度更新
@@ -137,7 +147,7 @@ const Popup = () => {
         ].join(",")
       )
     ];
-    
+
     // 使用正确的换行符连接行
     const csvContent = csvRows.join("\n");
 
@@ -150,6 +160,13 @@ const Popup = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    // 导出后清除本地存储的数据
+    chrome.storage.local.remove('taobaoData', () => {
+      console.log('导出完成，已清除本地存储的数据');
+      setExtractedData(null);
+      setStatus("就绪");
+    });
   };
 
   return (
@@ -190,10 +207,32 @@ const Popup = () => {
               color: "white",
               border: "none",
               borderRadius: "4px",
-              cursor: extractedData ? "pointer" : "not-allowed"
+              cursor: extractedData ? "pointer" : "not-allowed",
+              marginRight: "10px"
             }}
           >
             导出CSV
+          </button>
+          
+          <button
+            onClick={() => {
+              chrome.storage.local.remove('taobaoData', () => {
+                console.log('已清除本地存储的数据');
+                setExtractedData(null);
+                setStatus("就绪");
+              });
+            }}
+            disabled={!extractedData}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: extractedData ? "#ff4d4f" : "#d9d9d9",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: extractedData ? "pointer" : "not-allowed"
+            }}
+          >
+            清除数据
           </button>
         </div>
 
