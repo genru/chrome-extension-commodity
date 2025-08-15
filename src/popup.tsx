@@ -160,7 +160,7 @@ const Popup = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // 导出后清除本地存储的数据
     chrome.storage.local.remove('taobaoData', () => {
       console.log('导出完成，已清除本地存储的数据');
@@ -175,7 +175,6 @@ const Popup = () => {
         <h2>淘宝商品数据提取工具</h2>
 
         <div style={{ marginBottom: "15px" }}>
-          <p><strong>当前URL:</strong> {currentURL}</p>
           <p><strong>当前时间:</strong> {new Date().toLocaleTimeString()}</p>
         </div>
 
@@ -213,7 +212,7 @@ const Popup = () => {
           >
             导出CSV
           </button>
-          
+
           <button
             onClick={() => {
               chrome.storage.local.remove('taobaoData', () => {

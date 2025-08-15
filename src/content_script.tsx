@@ -150,6 +150,12 @@ async function extractTaobaoItems(
   const items: Element[] = Array.from(
     document.querySelectorAll("#content_items_wrapper > div")
   ).slice(0,5);
+  
+  // 如果没有找到商品，抛出错误
+  if (items.length === 0) {
+    throw new Error("未找到任何商品，请确保您已打开淘宝商品列表页面");
+  }
+  
   if (sendProgressUpdate) {
     sendProgressUpdate(`找到 ${items.length} 个商品，开始提取数据...`, 20);
   }
