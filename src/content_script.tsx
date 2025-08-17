@@ -149,7 +149,7 @@ async function extractTaobaoItems(
   // 注意：淘宝的DOM结构可能会变化，以下选择器需要根据实际情况调整
   const items: Element[] = Array.from(
     document.querySelectorAll("#content_items_wrapper > div")
-  ).slice(0,10);
+  );
 
   // 如果没有找到商品，抛出错误
   if (items.length === 0) {
@@ -251,12 +251,12 @@ async function extractTaobaoItems(
   if (sendProgressUpdate) {
     sendProgressUpdate("数据提取完成，准备最终数据...", 90);
   }
-  
+
   // 为所有商品设置默认的spec值
   for (const item of extractedData) {
     item.spec = "SKU获取已跳过";
   }
-  
+
   // 短暂延迟，让用户看到进度变化
   await new Promise(resolve => setTimeout(resolve, 300));
 
