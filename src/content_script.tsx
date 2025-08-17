@@ -98,7 +98,7 @@ function accessWindowLib(reqData: any): Promise<any> {
   });
 }
 
-const SECOND_FOR_WAITING:number = 3*1000;
+const SECOND_FOR_WAITING:number = 10*1000;
 /**
  * 从淘宝页面提取商品数据。
  *
@@ -149,13 +149,13 @@ async function extractTaobaoItems(
   // 注意：淘宝的DOM结构可能会变化，以下选择器需要根据实际情况调整
   const items: Element[] = Array.from(
     document.querySelectorAll("#content_items_wrapper > div")
-  ).slice(0,5);
-  
+  ).slice(0,10);
+
   // 如果没有找到商品，抛出错误
   if (items.length === 0) {
     throw new Error("未找到任何商品，请确保您已打开淘宝商品列表页面");
   }
-  
+
   if (sendProgressUpdate) {
     sendProgressUpdate(`找到 ${items.length} 个商品，开始提取数据...`, 20);
   }
@@ -278,7 +278,7 @@ async function extractTaobaoItems(
           // 使用相同的安全进度值，避免进度回退
           sendProgressUpdate(`等待请求冷却时间...`, Math.min(95, safeProgress));
         }
-        await new Promise(resolve => setTimeout(resolve, SECOND_FOR_WAITING));
+        await new Promise(resolve => setTimeout(resolve, SECOND_FOR_WAITING+Math.random()));
       }
 
       const detail = await fetchTaobaoItemDetail(item.id);
