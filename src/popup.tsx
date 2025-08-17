@@ -134,7 +134,7 @@ const Popup = () => {
   const exportToCSV = () => {
     if (!extractedData || !extractedData.items.length) return;
 
-    const headers = ["标题", "链接", "价格", "规格", "店铺名称", "店铺链接"];
+    const headers = ["标题", "链接", "价格", "店铺名称", "店铺链接"];
     const csvRows = [
       headers.join(","),
       ...extractedData.items.map(item =>
@@ -142,7 +142,6 @@ const Popup = () => {
           `"${item.title.replace(/"/g, '""')}"`,
           `"${item.url}"`,
           `"${item.price}"`,
-          `"${item.spec.replace(/"/g, '""')}"`,
           `"${item.shopName.replace(/"/g, '""')}"`,
           `"${item.shopUrl}"`
         ].join(",")
@@ -324,7 +323,6 @@ const Popup = () => {
                         </a>
                       </td>
                       <td style={{ padding: "8px", border: "1px solid #ddd" }}>{item.price}</td>
-                      <td style={{ padding: "8px", border: "1px solid #ddd" }}>{item.spec}</td>
                       <td style={{ padding: "8px", border: "1px solid #ddd" }}>
                         <a href={item.shopUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#1890ff", textDecoration: "none" }}>
                           {item.shopName}
