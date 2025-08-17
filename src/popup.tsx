@@ -28,6 +28,7 @@ const Popup = () => {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("就绪");
   const [progress, setProgress] = useState<number>(0);
+  const [maxPages, setMaxPages] = useState<number>(5);
 
   useEffect(() => {
     chrome.action.setBadgeText({ text: count.toString() });
@@ -92,7 +93,7 @@ const Popup = () => {
 
         chrome.tabs.sendMessage(
           tab.id,
-          { action: "extract_taobao_items" },
+          { action: "extract_taobao_items", maxPages: maxPages },
           (response) => {
             clearInterval(progressInterval);
             setIsLoading(false);
@@ -178,7 +179,26 @@ const Popup = () => {
           <p><strong>当前时间:</strong> {new Date().toLocaleTimeString()}</p>
         </div>
 
-        <div style={{ marginBottom: "15px" }}>
+        <div style={{ marginBottom: "15px", display: "flex", alignItems: "center" }}>
+          <div style={{ marginRight: "15px", display: "flex", alignItems: "center" }}>
+            <label style={{ marginRight: "8px", fontWeight: "bold" }}>
+              提取页数:
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              value={maxPages}
+              onChange={(e) => setMaxPages(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+              style={{
+                width: "60px",
+                padding: "5px",
+                border: "1px solid #ddd",
+                borderRadius: "4px"
+              }}
+              disabled={isLoading}
+            />
+          </div>
           <button
             onClick={extractTaobaoData}
             disabled={isLoading}
@@ -292,7 +312,6 @@ const Popup = () => {
                   <tr style={{ backgroundColor: "#f7f7f7" }}>
                     <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>标题</th>
                     <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>价格</th>
-                    <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>规格</th>
                     <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>店铺</th>
                   </tr>
                 </thead>

@@ -312,6 +312,76 @@ export async function fetchTaobaoItemDetail(itemId: string): Promise<any> {
   }
 }
 
+/**
+ * 尝试查找并点击下一页按钮
+ * @returns {Promise<boolean>} 是否成功翻页
+ */
+async function goToNextPage(): Promise<boolean> {
+  try {
+    // 淘宝商品列表页的下一页按钮选择器
+    const nextPageSelectors = [
+      '#search-content-leftWrap button.next-btn.next-pagination-item.next-next' // 某些淘宝页面使用的分页
+    ];
+
+    // 尝试所有可能的选择器
+    for (const selector of nextPageSelectors) {
+      const nextButton = document.querySelector(selector) as HTMLElement;
+      if (nextButton) {
+        console.log('找到下一页按钮:', nextButton);
+        // 点击下一页按钮
+        nextButton.click();
+        // 等待页面加载
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return true;
+      }
+    }
+
+    console.log('未找到下一页按钮');
+    return false;
+  } catch (error) {
+    console.error('翻页过程中出错:', error);
+    return false;
+  }
+}
+
+/**
+ * 获取当前页码
+ * @returns {number} 当前页码
+ */
+function getCurrentPageNumber(): number {
+  try {
+    // 尝试多种可能的页码选择器
+    const pageSelectors = [
+      '.current', // 标准淘宝分页中的当前页
+      '.next-pagination-item.next-current span', // 新版淘宝分页
+      '.page-cur', // 另一种页码显示
+      'li.active span', // 某些页面的当前页标记
+    ];
+
+    for (const selector of pageSelectors) {
+      const pageElement = document.querySelector(selector);
+      if (pageElement && pageElement.textContent) {
+        const pageNum = parseInt(pageElement.textContent.trim());
+        if (!isNaN(pageNum)) {
+          return pageNum;
+        }
+      }
+    }
+
+    // 如果无法找到页码元素，尝试从URL中提取
+    const urlMatch = window.location.href.match(/[?&]page=(\d+)/);
+    if (urlMatch && urlMatch[1]) {
+      return parseInt(urlMatch[1]);
+    }
+
+    // 默认返回第1页
+    return 1;
+  } catch (error) {
+    console.error('获取页码时出错:', error);
+    return 1;
+  }
+}
+
 // 监听来自扩展其他部分的消息
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   console.log(msg);
@@ -337,21 +407,72 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       });
     };
 
+    // 获取要提取的最大页数
+    const maxPages = msg.maxPages || 1;
+
     // 发送初始进度更新
-    sendProgressUpdate("开始提取数据...", 10);
+    sendProgressUpdate(`开始提取数据，计划提取 ${maxPages} 页...`, 10);
 
     // 使用setTimeout模拟异步操作，让UI有时间显示进度
     setTimeout(async () => {
       try {
-        // 提取淘宝商品数据
-        const data = await extractTaobaoItems(sendProgressUpdate);
-        // console.log("提取的数据:", data);
+        // 存储所有页面的商品数据
+        let allItems: TaobaoItem[] = [];
+        let currentPage = 1;
+        let pageTitle = document.title;
+        let pageUrl = window.location.href;
+
+        // 循环提取每一页的数据
+        while (currentPage <= maxPages) {
+          // 更新进度
+          const pageProgress = Math.floor(((currentPage - 1) / maxPages) * 80) + 10;
+          sendProgressUpdate(`正在提取第 ${currentPage}/${maxPages} 页...`, pageProgress);
+
+          // 提取当前页面的商品数据
+          const pageData = await extractTaobaoItems((status, progress) => {
+            // 调整进度范围，确保不超过总体进度
+            const adjustedProgress = Math.min(pageProgress + (progress * 0.8 / maxPages), 90);
+            sendProgressUpdate(`${status} (第 ${currentPage}/${maxPages} 页)`, adjustedProgress);
+          });
+
+          // 将当前页的商品添加到总列表中
+          allItems = [...allItems, ...pageData.items];
+
+          // 如果还有更多页面需要提取
+          if (currentPage < maxPages) {
+            sendProgressUpdate(`第 ${currentPage}/${maxPages} 页提取完成，准备翻页...`, pageProgress + 5);
+
+            // 尝试翻到下一页
+            const nextPageSuccess = await goToNextPage();
+
+            // 如果翻页失败，中断循环
+            if (!nextPageSuccess) {
+              sendProgressUpdate(`无法翻到下一页，已完成 ${currentPage}/${maxPages} 页提取`, 90);
+              break;
+            }
+
+            // 等待页面加载完成
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+
+          currentPage++;
+        }
+
+        // 构建最终返回的数据
+        const finalData = {
+          pageTitle: pageTitle + (maxPages > 1 ? ` (共${Math.min(currentPage - 1, maxPages)}页)` : ''),
+          pageUrl,
+          items: allItems,
+          timestamp: new Date().toISOString(),
+          itemCount: allItems.length
+        };
+
         // 发送最终进度更新
-        sendProgressUpdate("提取完成，准备数据...", 100);
+        sendProgressUpdate(`提取完成，共获取 ${allItems.length} 个商品数据`, 100);
 
         // 延迟一点时间再发送响应，让用户看到100%的进度
         setTimeout(() => {
-          sendResponse(data);
+          sendResponse(finalData);
         }, 500);
       } catch (error) {
         console.error("提取数据时出错:", error);

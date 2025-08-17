@@ -19,13 +19,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.get('progressUpdate', (data) => {
         const currentStoredProgress = data.progressUpdate?.progress || 0;
         const newProgress = message.progress;
-        
+
         // 如果新进度小于已存储的进度，则保持使用已存储的较高进度值
         if (newProgress < currentStoredProgress) {
           console.log(`防止进度回退: 保持进度 ${currentStoredProgress}% (忽略新进度 ${newProgress}%)`);
           message.progress = currentStoredProgress;
         }
-        
+
         // 将消息存储在本地，让popup可以在打开时获取最新进度
         chrome.storage.local.set({ progressUpdate: message }, () => {
           // 尝试将消息转发到所有标签页，让已打开的popup能够接收
@@ -62,9 +62,12 @@ chrome.runtime.onInstalled.addListener(() => {
 // 处理右键菜单点击事件
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'extract_taobao_items' && tab?.id) {
+    // 默认提取1页
+    const maxPages = 5;
+
     chrome.tabs.sendMessage(
       tab.id,
-      { action: 'extract_taobao_items' },
+      { action: 'extract_taobao_items', maxPages },
       (response) => {
         if (chrome.runtime.lastError) {
           console.error('提取失败:', chrome.runtime.lastError.message);
