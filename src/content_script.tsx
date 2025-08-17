@@ -161,7 +161,7 @@ async function extractTaobaoItems(
   }
 
   // 计算每个商品的进度增量
-  const progressIncrement: number = items.length > 0 ? 30 / items.length : 0;
+  const progressIncrement: number = items.length > 0 ? 70 / items.length : 0;
   let currentProgress: number = 20;
   // 记录商品提取阶段的最高进度值，确保进度不会回退
   let itemsHighestProgress: number = 20;
@@ -176,7 +176,7 @@ async function extractTaobaoItems(
           itemsHighestProgress = Math.max(itemsHighestProgress, currentProgress);
           sendProgressUpdate(
             `已提取 ${index}/${items.length} 个商品...`,
-            Math.min(50, itemsHighestProgress)
+            Math.min(90, itemsHighestProgress)
           );
         }
 
@@ -247,62 +247,18 @@ async function extractTaobaoItems(
     })
     .filter((item) => item.title !== "N/A" && item.title !== "Error"); // 过滤掉无效数据
 
-  // extract sku prices and names
+  // 跳过SKU获取步骤
   if (sendProgressUpdate) {
-    sendProgressUpdate("开始获取商品SKU信息...", 50);
+    sendProgressUpdate("数据提取完成，准备最终数据...", 90);
   }
-
-  // 计算SKU提取的进度增量
-  const skuProgressIncrement = extractedData.length > 0 ? 45 / extractedData.length : 0;
-
-  // 记录SKU提取阶段的最高进度值，确保进度不会回退
-  let skuHighestProgress = 50;
-
-  for (let index = 0; index < extractedData.length; index++) {
-    const item = extractedData[index];
-
-    // 计算当前理论进度值
-    const currentProgress = 50 + (skuProgressIncrement * index);
-    // 确保进度只增不减
-    const safeProgress = Math.max(skuHighestProgress, currentProgress);
-    skuHighestProgress = safeProgress;
-
-    if (sendProgressUpdate) {
-      sendProgressUpdate(`正在获取第 ${index + 1}/${extractedData.length} 个商品的SKU信息...`, Math.min(95, safeProgress));
-    }
-
-    try {
-      // 添加n秒延迟，避免频繁请求淘宝API
-      if (index > 0) {
-        if (sendProgressUpdate) {
-          // 使用相同的安全进度值，避免进度回退
-          sendProgressUpdate(`等待请求冷却时间...`, Math.min(95, safeProgress));
-        }
-        await new Promise(resolve => setTimeout(resolve, SECOND_FOR_WAITING+Math.random()));
-      }
-
-      const detail = await fetchTaobaoItemDetail(item.id);
-      // console.info(`获取商品 ${item.id} 的SKU信息成功`, detail);
-      const sku = getSkuPricesAndNames(detail.data);
-      item.spec = sku.length > 0
-        ? sku.map(sku => `${sku.name}: ¥${sku.price}元`).join(', ')
-        : "无SKU信息";
-
-      if (sendProgressUpdate && (index + 1) % 5 === 0) {
-        // 更新完成后的进度，同样确保只增不减
-        const newProgress = 50 + (skuProgressIncrement * (index + 1));
-        skuHighestProgress = Math.max(skuHighestProgress, newProgress);
-        sendProgressUpdate(`已完成 ${index + 1}/${extractedData.length} 个商品的SKU提取`, Math.min(95, skuHighestProgress));
-      }
-    } catch (error) {
-      console.error(`获取商品 ${item.id} 的SKU信息失败:`, error);
-      item.spec = "SKU获取失败";
-    }
+  
+  // 为所有商品设置默认的spec值
+  for (const item of extractedData) {
+    item.spec = "SKU获取已跳过";
   }
-
-  if (sendProgressUpdate) {
-    sendProgressUpdate("SKU数据处理完成，准备最终数据...", 95);
-  }
+  
+  // 短暂延迟，让用户看到进度变化
+  await new Promise(resolve => setTimeout(resolve, 300));
 
   return {
     pageTitle,
