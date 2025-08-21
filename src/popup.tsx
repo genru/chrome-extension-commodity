@@ -10,6 +10,9 @@ interface TaobaoItem {
   spec: string;
   shopName: string;
   shopUrl: string;
+  salesCount: string;
+  location: string;
+  skuInfo: Array<{name: string, price: string, skuId: string}>;
 }
 
 interface ExtractedData {
@@ -134,7 +137,8 @@ const Popup = () => {
   const exportToCSV = () => {
     if (!extractedData || !extractedData.items.length) return;
 
-    const headers = ["标题", "链接", "价格", "店铺名称", "店铺链接"];
+    // const headers = ["标题", "链接", "价格", "销量", "产地", "店铺名称", "店铺链接", "SKU信息"];
+    const headers = ["标题", "链接", "价格", "销量", "产地", "店铺名称", "店铺链接"];
     const csvRows = [
       headers.join(","),
       ...extractedData.items.map(item =>
@@ -142,8 +146,11 @@ const Popup = () => {
           `"${item.title.replace(/"/g, '""')}"`,
           `"${item.url}"`,
           `"${item.price}"`,
+          `"${item.salesCount.replace(/"/g, '""')}"`,
+          `"${item.location.replace(/"/g, '""')}"`,
           `"${item.shopName.replace(/"/g, '""')}"`,
-          `"${item.shopUrl}"`
+          `"${item.shopUrl}"`,
+          // `"${item.skuInfo.map(sku => `${sku.name}:${sku.price}`).join(' | ')}"`
         ].join(",")
       )
     ];
@@ -311,7 +318,10 @@ const Popup = () => {
                   <tr style={{ backgroundColor: "#f7f7f7" }}>
                     <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>标题</th>
                     <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>价格</th>
+                    <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>销量</th>
+                    <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>产地</th>
                     <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>店铺</th>
+                    {/* <th style={{ padding: "8px", border: "1px solid #ddd", textAlign: "left" }}>SKU信息</th> */}
                   </tr>
                 </thead>
                 <tbody>
@@ -323,11 +333,21 @@ const Popup = () => {
                         </a>
                       </td>
                       <td style={{ padding: "8px", border: "1px solid #ddd" }}>{item.price}</td>
+                      <td style={{ padding: "8px", border: "1px solid #ddd" }}>{item.salesCount}</td>
+                      <td style={{ padding: "8px", border: "1px solid #ddd" }}>{item.location}</td>
                       <td style={{ padding: "8px", border: "1px solid #ddd" }}>
                         <a href={item.shopUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#1890ff", textDecoration: "none" }}>
                           {item.shopName}
                         </a>
                       </td>
+                      {/* <td style={{ padding: "8px", border: "1px solid #ddd" }}>
+                        {item.skuInfo && item.skuInfo.length > 0
+                          ? item.skuInfo.map((sku, i) => (
+                              <div key={i}>{sku.name}: {sku.price}</div>
+                            ))
+                          : "无SKU信息"
+                        }
+                      </td> */}
                     </tr>
                   ))}
                 </tbody>

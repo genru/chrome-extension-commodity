@@ -33,7 +33,7 @@
   ],
 
   "host_permissions": [
-    "*://*.taobao.com/search*",
+    "*://*.taobao.com/*",
     "*://*.tmall.com/*",
     "*://*.1688.com/*"
   ],

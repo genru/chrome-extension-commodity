@@ -10,6 +10,9 @@ interface TaobaoItem {
   spec: string;
   shopName: string;
   shopUrl: string;
+  salesCount: string;
+  location: string;
+  skuInfo: Array<{name: string, price: string, skuId: string}>;
 }
 
 interface ExtractedTaobaoData {
@@ -98,7 +101,7 @@ function accessWindowLib(reqData: any): Promise<any> {
   });
 }
 
-const SECOND_FOR_WAITING:number = 10*1000;
+const SECOND_FOR_WAITING:number = 30*1000;
 /**
  * 从淘宝页面提取商品数据。
  *
@@ -223,6 +226,18 @@ async function extractTaobaoItems(
         ) as HTMLAnchorElement | null;
         const shopUrl: string = shopLinkElement?.href || "N/A";
 
+        // 提取销量
+        const salesElement = item.querySelector(
+          "a[data-spm-act-id] span.realSales--XZJiepmt"
+        ) as HTMLElement | null;
+        const salesCount: string = salesElement?.textContent?.trim() || "N/A";
+
+        // 提取商品产地
+        const locationElement = item.querySelector(
+          "a[data-spm-act-id] div.procity--wlcT2xH9"
+        ) as HTMLElement | null;
+        const location: string = locationElement?.textContent?.trim() || "N/A";
+
         return {
           id: itemId,
           title,
@@ -231,6 +246,9 @@ async function extractTaobaoItems(
           spec,
           shopName,
           shopUrl,
+          salesCount,
+          location,
+          skuInfo: [], // 初始化为空数组，后续会填充
         };
       } catch (error) {
         console.error("提取商品数据时出错:", error);
@@ -242,19 +260,56 @@ async function extractTaobaoItems(
           spec: "Error",
           shopName: "Error",
           shopUrl: "Error",
+          salesCount: "Error",
+          location: "Error",
+          skuInfo: [],
         };
       }
     })
     .filter((item) => item.title !== "N/A" && item.title !== "Error"); // 过滤掉无效数据
 
-  // 跳过SKU获取步骤
+  // 获取SKU信息
   if (sendProgressUpdate) {
-    sendProgressUpdate("数据提取完成，准备最终数据...", 90);
+    sendProgressUpdate("数据提取完成，开始获取SKU信息...", 90);
   }
 
-  // 为所有商品设置默认的spec值
+  // 为每个商品获取SKU信息
+  let fetchFailed = false;
   for (const item of extractedData) {
-    item.spec = "SKU获取已跳过";
+    console.log('skip sku extraction');
+    break;
+    if (fetchFailed) {
+      // 如果之前有失败，跳过剩余商品
+      item.skuInfo = [];
+      item.spec = "SKU获取已跳过";
+      continue;
+    }
+
+    try {
+      const detailData = await fetchTaobaoItemDetail(item.id);
+      if (detailData && detailData.data) {
+        if(!detailData.data.skuBase.props) {
+          console.warn(`商品 ${item.id} 没有SKU属性，跳过SKU提取`);
+          item.skuInfo = [];
+          item.spec = "无SKU属性";
+          await new Promise(resolve => setTimeout(resolve, SECOND_FOR_WAITING + Math.random()*20000));
+          continue;
+        }
+        item.skuInfo = getSkuPricesAndNames(detailData.data);
+        item.spec = "SKU获取成功";
+        // 每次成功获取后等待10秒
+        await new Promise(resolve => setTimeout(resolve, SECOND_FOR_WAITING + Math.random()*20000));
+      } else {
+        item.skuInfo = [];
+        item.spec = "SKU获取失败";
+        fetchFailed = true; // 标记失败，后续将跳过
+      }
+    } catch (error) {
+      console.error(`获取商品 ${item.id} 的SKU信息失败:`, error);
+      item.skuInfo = [];
+      item.spec = "SKU获取失败";
+      fetchFailed = true; // 标记失败，后续将跳过
+    }
   }
 
   // 短暂延迟，让用户看到进度变化
@@ -292,8 +347,8 @@ export async function fetchTaobaoItemDetail(itemId: string): Promise<any> {
         "timeout": 10000,
         "jsonpIncPrefix": "pcdetail",
         "ttid": "2022@taobao_litepc_9.17.0",
-        "AntiFlood": true,
-        "AntiCreep": true
+        "AntiFlood": false,
+        "AntiCreep": false
     };
     // 使用注入脚本的方式访问window.lib.mtop.H5Request
     const responseData = await accessWindowLib(reqData);
@@ -327,7 +382,7 @@ async function goToNextPage(): Promise<boolean> {
     for (const selector of nextPageSelectors) {
       const nextButton = document.querySelector(selector) as HTMLElement;
       if (nextButton) {
-        console.log('找到下一页按钮:', nextButton);
+        // console.log('找到下一页按钮:', nextButton);
         // 点击下一页按钮
         nextButton.click();
         // 等待页面加载
