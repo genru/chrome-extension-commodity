@@ -8,6 +8,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true; // 保持消息通道开放，以便异步响应
   }
+  // 处理解析重定向链接的请求
+  else if (message.action === 'resolveRedirect' && message.url) {
+    console.log('正在解析重定向链接:', message.url);
+    
+    // 使用 fetch 在后台脚本中处理重定向
+    fetch(message.url, {
+      method: 'HEAD',
+      redirect: 'follow' // 允许自动跟随重定向
+    })
+    .then(response => {
+      // 获取最终的 URL
+      const resolvedUrl = response.url;
+      console.log('解析后的链接:', resolvedUrl);
+      sendResponse({ resolvedUrl });
+    })
+    .catch(error => {
+      console.error('解析重定向链接时出错:', error);
+      sendResponse({ error: error.message });
+    });
+    
+    return true; // 保持消息通道开放，以便异步响应
+  }
   // 转发进度更新消息到popup
   else if (message.action === 'progress_update') {
     // 获取当前活动标签页的ID

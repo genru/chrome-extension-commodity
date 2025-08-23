@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { getExtensionVersion } from "./utils/version";
 
 const Options = () => {
   const [status, setStatus] = useState<string>("");
   const [autoExtract, setAutoExtract] = useState<boolean>(false);
+  const version = getExtensionVersion();
   const [extractFields, setExtractFields] = useState<{
     title: boolean;
     url: boolean;
@@ -89,7 +91,10 @@ const Options = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h1>淘宝商品数据提取工具 - 设置</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>淘宝商品数据提取工具 - 设置</h1>
+        <span style={{ fontSize: "12px", color: "#888" }}>v{version}</span>
+      </div>
       
       <div style={{ marginBottom: "20px" }}>
         <h3>数据提取设置</h3>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { getExtensionVersion } from "./utils/version";
 
 // 定义提取数据的类型
 interface TaobaoItem {
@@ -24,7 +25,7 @@ interface ExtractedData {
 }
 
 const Popup = () => {
-  const [count, setCount] = useState(0);
+  // count 状态变量已移除，不再需要显示徽章
   const [currentURL, setCurrentURL] = useState<string>();
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,10 +33,13 @@ const Popup = () => {
   const [status, setStatus] = useState<string>("就绪");
   const [progress, setProgress] = useState<number>(0);
   const [maxPages, setMaxPages] = useState<number>(5);
+  const version = getExtensionVersion();
 
+  // 徽章计数功能已移除
   useEffect(() => {
-    chrome.action.setBadgeText({ text: count.toString() });
-  }, [count]);
+    // 确保徽章文本为空
+    chrome.action.setBadgeText({ text: '' });
+  }, []);
 
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -179,7 +183,10 @@ const Popup = () => {
   return (
     <>
       <div style={{ minWidth: "700px", padding: "10px" }}>
-        <h2>淘宝商品数据提取工具</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2>淘宝商品数据提取工具</h2>
+          <span style={{ fontSize: "12px", color: "#888" }}>v{version}</span>
+        </div>
 
         <div style={{ marginBottom: "15px" }}>
           <p><strong>当前时间:</strong> {new Date().toLocaleTimeString()}</p>

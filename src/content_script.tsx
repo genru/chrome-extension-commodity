@@ -276,8 +276,20 @@ async function extractTaobaoItems(
   // 为每个商品获取SKU信息
   let fetchFailed = false;
   for (const item of extractedData) {
-    console.log('skip sku extraction');
-    break;
+    // console.log('skip sku extraction');
+    if(item.url.startsWith('https://click.simba.taobao')) {
+      // 规范化广告链接
+      try {
+        const normalizedUrl = await normalizeAdUrl(item.url);
+        if (normalizedUrl) {
+          item.url = normalizedUrl;
+          console.log(`已规范化广告链接: ${normalizedUrl}`);
+        }
+      } catch (error) {
+        console.error(`规范化广告链接失败:`, error);
+      }
+    }
+    continue;
     if (fetchFailed) {
       // 如果之前有失败，跳过剩余商品
       item.skuInfo = [];
@@ -400,6 +412,48 @@ async function goToNextPage(): Promise<boolean> {
 }
 
 /**
+ * 规范化广告链接
+ * @param {string} adUrl - 广告链接，以 'https://click.simba.taobao' 开头
+ * @returns {Promise<string|null>} 规范化后的URL，如果失败则返回null
+ */
+async function normalizeAdUrl(adUrl: string): Promise<string|null> {
+  try {
+    // 首先尝试从 URL 参数中提取目标 URL，这种方法不需要网络请求
+    const url = new URL(adUrl);
+    const targetUrl = url.searchParams.get('target');
+    if (targetUrl) {
+      try {
+        return decodeURIComponent(targetUrl);
+      } catch (e) {
+        console.error('解码目标URL失败:', e);
+      }
+    }
+
+    // 如果无法从参数中获取，则使用消息传递机制请求后台脚本执行网络请求
+    // 这样可以避免内容脚本中的跨域限制
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { 
+          action: 'resolveRedirect', 
+          url: adUrl 
+        },
+        (response) => {
+          if (response && response.resolvedUrl) {
+            resolve(response.resolvedUrl);
+          } else {
+            console.log('无法解析重定向链接:', response?.error || '未知错误');
+            resolve(null);
+          }
+        }
+      );
+    });
+  } catch (error) {
+    console.error('规范化广告链接时出错:', error);
+    return null;
+  }
+}
+
+/**
  * 获取当前页码
  * @returns {number} 当前页码
  */
@@ -439,7 +493,6 @@ function getCurrentPageNumber(): number {
 
 // 监听来自扩展其他部分的消息
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
-  console.log(msg);
   if (msg.action === 'extract_taobao_items') {
     // 创建进度更新函数
     interface ProgressUpdateMessage {
