@@ -81,9 +81,24 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// 导入许可证验证函数
+import { checkLicenseValidity } from './utils/license';
+
 // 处理右键菜单点击事件
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'extract_taobao_items' && tab?.id) {
+    // 验证许可证
+    const isLicenseValid = await checkLicenseValidity();
+    if (!isLicenseValid) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon.png',
+        title: '许可证错误',
+        message: '许可证无效或已过期，请在选项页面中更新您的许可证'
+      });
+      return;
+    }
+    
     // 默认提取1页
     const maxPages = 1;
     

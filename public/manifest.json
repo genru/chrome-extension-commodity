@@ -3,7 +3,7 @@
 
   "name": "淘宝商品数据提取工具",
   "description": "提取淘宝商品列表页面的标题、URL、价格、规格、店铺URL和店铺链接",
-  "version": "1.1",
+  "version": "1.2",
 
   "options_ui": {
     "page": "options.html"
@@ -29,13 +29,15 @@
     "storage",
     "activeTab",
     "contextMenus",
-    "notifications"
+    "notifications",
+    "https://licenceman.njxyzc.com/licences/api/*"
   ],
 
   "host_permissions": [
     "*://*.taobao.com/*",
     "*://*.tmall.com/*",
-    "*://*.1688.com/*"
+    "*://*.1688.com/*",
+    "https://licenceman.njxyzc.com/licences/api/*"
   ],
 
   "icons": {

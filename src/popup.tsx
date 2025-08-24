@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getExtensionVersion } from "./utils/version";
+import { checkLicenseValidity } from "./utils/license";
 
 // 定义提取数据的类型
 interface TaobaoItem {
@@ -75,11 +76,21 @@ const Popup = () => {
   }, []);
 
   // 提取淘宝商品数据
-  const extractTaobaoData = () => {
+  const extractTaobaoData = async () => {
     setIsLoading(true);
     setError(null);
     setStatus("准备中...");
     setProgress(5);
+    
+    // 验证许可证
+    const isLicenseValid = await checkLicenseValidity();
+    if (!isLicenseValid) {
+      setIsLoading(false);
+      setError("许可证无效或已过期，请在选项页面中更新您的许可证");
+      setStatus("许可证错误");
+      setProgress(0);
+      return;
+    }
 
     // 模拟进度更新
     const progressInterval = setInterval(() => {

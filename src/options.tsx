@@ -1,11 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getExtensionVersion } from "./utils/version";
+import { verifyLicense, LicenseStatus } from "./utils/license";
+
+// 处理可能的编码问题，确保文本正确显示
+const sanitizeText = (text: any): string => {
+  if (text === null || text === undefined) {
+    return '';
+  }
+
+  let sanitized = '';
+  try {
+    // 转换为字符串
+    sanitized = typeof text === 'object' ? JSON.stringify(text) : String(text);
+
+    // 检查是否包含乱码字符
+    if (/[\uFFFD\uD800-\uDBFF]/.test(sanitized)) {
+      console.warn('检测到可能的乱码:', sanitized);
+      return ''; // 返回空字符串，让调用者提供默认值
+    }
+  } catch (e) {
+    console.error('文本处理失败:', e);
+    return '';
+  }
+
+  return sanitized;
+};
 
 const Options = () => {
   const [status, setStatus] = useState<string>("");
   const [autoExtract, setAutoExtract] = useState<boolean>(false);
   const version = getExtensionVersion();
+  const [licenseKey, setLicenseKey] = useState<string>("");
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus>(LicenseStatus.PENDING);
+  const [licenseMessage, setLicenseMessage] = useState<string>("");
   const [extractFields, setExtractFields] = useState<{
     title: boolean;
     url: boolean;
@@ -41,6 +69,7 @@ const Options = () => {
         csvDelimiter: ",",
         notifyOnExtract: true,
         maxItems: 100,
+        licenseKey: "",
       },
       (items) => {
         setAutoExtract(items.autoExtract);
@@ -48,9 +77,54 @@ const Options = () => {
         setCsvDelimiter(items.csvDelimiter);
         setNotifyOnExtract(items.notifyOnExtract);
         setMaxItems(items.maxItems);
+        setLicenseKey(items.licenseKey);
+
+        // 如果有许可证密钥，验证其有效性
+        if (items.licenseKey) {
+          verifyLicenseKey(items.licenseKey);
+        }
       }
     );
   }, []);
+
+  // 验证许可证密钥
+  const verifyLicenseKey = async (key: string) => {
+    setLicenseStatus(LicenseStatus.PENDING);
+    setLicenseMessage("正在验证许可证...");
+
+    try {
+      const result = await verifyLicense(key);
+      console.info(result);
+      setLicenseStatus(result.status);
+
+      // 使用辅助函数处理消息，确保正确显示
+      const displayMessage = sanitizeText(result.message);
+
+      // 如果消息处理后为空，则使用默认消息
+      if (!displayMessage) {
+        const defaultMessage = result.status === LicenseStatus.VALID
+          ? '许可证验证成功'
+          : result.status === LicenseStatus.EXPIRED
+            ? '许可证已过期'
+            : '许可证无效';
+        setLicenseMessage(defaultMessage);
+        return;
+      }
+
+      setLicenseMessage(displayMessage);
+    } catch (error) {
+      setLicenseStatus(LicenseStatus.ERROR);
+
+      // 使用辅助函数处理错误消息
+      let errorMsg = '未知错误';
+      if (error instanceof Error) {
+        const sanitizedMessage = sanitizeText(error.message);
+        errorMsg = sanitizedMessage || '验证服务器返回了无法正确显示的错误信息';
+      }
+
+      setLicenseMessage(`验证过程中出错: ${errorMsg}`);
+    }
+  };
 
   const saveOptions = () => {
     // 保存选项到 chrome.storage.sync
@@ -61,6 +135,7 @@ const Options = () => {
         csvDelimiter,
         notifyOnExtract,
         maxItems,
+        licenseKey,
       },
       () => {
         // 更新状态，让用户知道选项已保存
@@ -95,7 +170,7 @@ const Options = () => {
         <h1>淘宝商品数据提取工具 - 设置</h1>
         <span style={{ fontSize: "12px", color: "#888" }}>v{version}</span>
       </div>
-      
+
       <div style={{ marginBottom: "20px" }}>
         <h3>数据提取设置</h3>
         <div style={{ marginBottom: "10px" }}>
@@ -108,7 +183,7 @@ const Options = () => {
             自动提取（页面加载完成后自动提取数据）
           </label>
         </div>
-        
+
         <div style={{ marginBottom: "10px" }}>
           <p style={{ marginBottom: "5px" }}>要提取的字段：</p>
           <div style={{ display: "flex", flexWrap: "wrap" }}>
@@ -163,7 +238,7 @@ const Options = () => {
           </div>
         </div>
       </div>
-      
+
       <div style={{ marginBottom: "20px" }}>
         <h3>导出设置</h3>
         <div style={{ marginBottom: "10px" }}>
@@ -180,7 +255,7 @@ const Options = () => {
             </select>
           </label>
         </div>
-        
+
         <div style={{ marginBottom: "10px" }}>
           <label>
             最大提取商品数量：
@@ -195,7 +270,7 @@ const Options = () => {
           </label>
         </div>
       </div>
-      
+
       <div style={{ marginBottom: "20px" }}>
         <h3>通知设置</h3>
         <div>
@@ -209,16 +284,78 @@ const Options = () => {
           </label>
         </div>
       </div>
-      
+
+      <div style={{ marginBottom: "20px" }}>
+        <h3>许可证管理</h3>
+        <div style={{ marginBottom: "15px" }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}>
+            <label style={{ marginRight: "10px", width: "80px" }}>许可证密钥:</label>
+            <input
+              type="text"
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value)}
+              style={{
+                flex: "1",
+                padding: "8px",
+                borderRadius: "4px",
+                border: "1px solid #d9d9d9"
+              }}
+              placeholder="请输入您的许可证密钥"
+            />
+            <button
+              onClick={() => verifyLicenseKey(licenseKey)}
+              style={{
+                marginLeft: "10px",
+                padding: "8px 16px",
+                backgroundColor: "#52c41a",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              验证
+            </button>
+          </div>
+          <div style={{
+            padding: "10px",
+            borderRadius: "4px",
+            backgroundColor:
+              licenseStatus === LicenseStatus.VALID ? "#f6ffed" :
+              licenseStatus === LicenseStatus.INVALID ? "#fff2f0" :
+              licenseStatus === LicenseStatus.EXPIRED ? "#fffbe6" :
+              licenseStatus === LicenseStatus.ERROR ? "#fff2f0" : "#f5f5f5",
+            borderLeft: `4px solid ${
+              licenseStatus === LicenseStatus.VALID ? "#52c41a" :
+              licenseStatus === LicenseStatus.INVALID ? "#ff4d4f" :
+              licenseStatus === LicenseStatus.EXPIRED ? "#faad14" :
+              licenseStatus === LicenseStatus.ERROR ? "#ff4d4f" : "#d9d9d9"
+            }`,
+            display: licenseMessage ? "block" : "none",
+            wordBreak: "break-word",
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+            fontSize: "14px"
+          }}>
+            {licenseMessage || (
+              licenseStatus === LicenseStatus.VALID ? "许可证验证成功" :
+              licenseStatus === LicenseStatus.INVALID ? "许可证无效" :
+              licenseStatus === LicenseStatus.EXPIRED ? "许可证已过期" :
+              licenseStatus === LicenseStatus.ERROR ? "验证过程中出错" :
+              licenseStatus === LicenseStatus.PENDING ? "正在验证..." : ""
+            )}
+          </div>
+        </div>
+      </div>
+
       <div style={{ marginBottom: "20px" }}>
         <h3>数据管理</h3>
-        <button 
+        <button
           onClick={clearStoredData}
-          style={{ 
-            padding: "8px 16px", 
-            backgroundColor: "#ff4d4f", 
-            color: "white", 
-            border: "none", 
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#ff4d4f",
+            color: "white",
+            border: "none",
             borderRadius: "4px",
             cursor: "pointer"
           }}
@@ -226,16 +363,16 @@ const Options = () => {
           清除所有存储的商品数据
         </button>
       </div>
-      
+
       <div style={{ marginTop: "30px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ color: "green", fontWeight: "bold" }}>{status}</div>
-        <button 
+        <button
           onClick={saveOptions}
-          style={{ 
-            padding: "8px 20px", 
-            backgroundColor: "#1890ff", 
-            color: "white", 
-            border: "none", 
+          style={{
+            padding: "8px 20px",
+            backgroundColor: "#1890ff",
+            color: "white",
+            border: "none",
             borderRadius: "4px",
             cursor: "pointer",
             fontSize: "16px"
